@@ -1,0 +1,9 @@
+path: /home/osamamansoor/factory-ppe-monitor/dataset
+
+train: train/images
+val: val/images
+test: test/images
+
+names:
+  0: Helmet
+  1: Person
