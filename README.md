@@ -1,4 +1,3 @@
-````markdown
 # Factory PPE Detection System
 
 An AI-powered real-time Factory Personal Protective Equipment (PPE) Monitoring System using CCTV/RTSP video streams, YOLO object detection, ByteTrack object tracking, Flask, and React.
