@@ -135,14 +135,14 @@ def main() -> None:
                 2,
             )
 
-            cv2.imshow("Factory Dataset Collection", preview)
+           # cv2.imshow("Factory Dataset Collection", preview)
 
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
+#            if cv2.waitKey(1) & 0xFF == ord("q"):
+ #               break
 
     finally:
         camera.release()
-        cv2.destroyAllWindows()
+#        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
