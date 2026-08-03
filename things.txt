@@ -1,0 +1,18 @@
+print("\n===== TRACKING DEBUG =====")
+            if person_result.boxes is not None:
+                print("Number of detections:", len(person_result.boxes))
+                print(
+                    "Boxes:",
+                    person_result.boxes.xyxy.tolist()
+                )
+                print(
+                    "Confidence:",
+                    person_result.boxes.conf.tolist()
+                )
+                print(
+                    "IDs:",
+                    person_result.boxes.id
+                )
+            else:
+                print("NO PERSON DETECTIONS")
+            print("==========================\n")
