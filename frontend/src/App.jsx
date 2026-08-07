@@ -9,239 +9,299 @@ import CameraFeed from "./components/CameraFeed";
 import StatCard from "./components/StatCard";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
-import logo from "./assets/company-logo.png";
+import Login from "./components/Login";
+import UserManagement from "./components/UserManagement";
+import Reports from "./components/Reports";
+import NotificationToast from "./components/NotificationToast";
 import { useEffect, useState } from "react";
+import {
+  API_BASE_URL,
+  authFetch,
+  getAuthToken,
+  getStoredUser,
+  clearAuthSession,
+  isDefaultAdminWarning
+} from "./config/api";
 
 import {
   Users,
-  HardHat,
   ShieldAlert,
   ShieldCheck,
-  Activity,
+  Clock,
+  CalendarCheck,
+  ArrowRight,
   Camera,
-  Bell,
+  AlertTriangle
 } from "lucide-react";
 
-const stats = [
-  {
-    title: "People Detected",
-    value: "12",
-    subtitle: "Currently in monitored area",
-    icon: "👥",
-  },
-  {
-    title: "Helmet Compliant",
-    value: "10",
-    subtitle: "83.3% compliance",
-    icon: "🪖",
-  },
-  {
-    title: "PPE Violations",
-    value: "2",
-    subtitle: "Requires attention",
-    icon: "⚠️",
-  },
-  {
-    title: "Compliance Rate",
-    value: "83.3%",
-    subtitle: "Current safety compliance",
-    icon: "✓",
-  },
-];
-
-const zones = [
-  { name: "Red Zone", people: 4, status: "Active" },
-  { name: "Yellow Zone", people: 3, status: "Active" },
-  { name: "Green Zone", people: 3, status: "Active" },
-  { name: "Blue Zone", people: 2, status: "Active" },
-];
-
-const violations = [
-  {
-    time: "10:42:18",
-    zone: "Red Zone",
-    violation: "Helmet Missing",
-    status: "Open",
-  },
-  {
-    time: "10:38:52",
-    zone: "Green Zone",
-    violation: "Helmet Missing",
-    status: "Open",
-  },
-  {
-    time: "10:31:24",
-    zone: "Yellow Zone",
-    violation: "Helmet Detected",
-    status: "Resolved",
-  },
-];
-
-function Dashboard() {
+function Dashboard({ onNavigateToEvents, userRole }) {
   const [liveStats, setLiveStats] = useState({
-      persons: 0,
-      helmets: 0,
-      violations: 0,
-      compliance_rate: 0
-    });
-const [events, setEvents] = useState([]);
+    persons: 0,
+    helmets: 0,
+    violations: 0,
+    compliance_rate: 0,
+    todays_incidents: 0,
+    todays_avg_duration: 0,
+  });
+
+  const [cameraStatus, setCameraStatus] = useState({
+    connected: false,
+    confidence: 0.3,
+  });
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch(
-          "http://10.2.0.177:5000/detection/stats"
-        );
-        const data = await response.json();
-        setLiveStats(data);
+        const [statsRes, camRes] = await Promise.all([
+          authFetch(`${API_BASE_URL}/detection/stats`),
+          authFetch(`${API_BASE_URL}/camera/status`),
+        ]);
+
+        if (statsRes.ok) {
+          const data = await statsRes.json();
+          setLiveStats(data);
+        }
+
+        if (camRes.ok) {
+          const camData = await camRes.json();
+          setCameraStatus(camData);
+        }
       } catch (error) {
-        console.error(
-          "Failed to fetch detection stats:",
-          error
-        );
+        console.error("Failed to fetch detection stats:", error);
       }
     };
     fetchStats();
-    const interval = setInterval(
-      fetchStats,
-      1000
-    );
+    const interval = setInterval(fetchStats, 1000);
     return () => clearInterval(interval);
   }, []);
-useEffect(() => {
-  const fetchEvents = async () => {
-    try {
-      const response = await fetch(
-        "http://10.2.0.177:5000/events"
-      );
 
-      const data = await response.json();
-
-      setEvents(data);
-    } catch (error) {
-      console.error("Failed to fetch events:", error);
-    }
+  const formatAvgDuration = (sec) => {
+    if (!sec || sec <= 0) return "0 sec";
+    const s = parseInt(sec, 10);
+    if (s < 60) return `${s} sec`;
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return r > 0 ? `${m}m ${r}s` : `${m}m`;
   };
 
-  fetchEvents();
+  const isViewer = userRole === "Viewer";
 
-  const interval = setInterval(fetchEvents, 1000);
+  return (
+    <div className="p-8 space-y-8">
+      {/* TODAY'S OPERATIONAL KPI CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5">
+        <StatCard
+          title="Today's Incidents"
+          value={liveStats.todays_incidents ?? 0}
+          subtitle="Total violations logged today"
+          icon={<CalendarCheck size={28} />}
+          color="red"
+          trend="Today Only"
+        />
 
-  return () => clearInterval(interval);
-}, []);
-    return (
-  <div className="p-8 space-y-8">
+        <StatCard
+          title="Active Violations"
+          value={liveStats.violations}
+          subtitle="Currently active unresolved"
+          icon={<ShieldAlert size={28} />}
+          color="yellow"
+          trend="Active Now"
+        />
 
-    {/* =========================
-        KPI CARDS
-    ========================== */}
+        <StatCard
+          title="Workers Currently Tracked"
+          value={liveStats.persons}
+          subtitle="Live tracked workers in view"
+          icon={<Users size={28} />}
+          color="blue"
+          trend="Live Count"
+        />
 
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <StatCard
+          title="Today's Compliance"
+          value={`${liveStats.compliance_rate}%`}
+          subtitle="Today's helmet compliance %"
+          icon={<ShieldCheck size={28} />}
+          color="green"
+          trend="Target >95%"
+        />
 
-      <StatCard
-        title="People Detected"
-        value={liveStats.persons}
-        subtitle="Currently inside monitored zones"
-        icon={<Users size={30} />}
-        color="blue"
-        trend="+2"
-      />
-
-      <StatCard
-        title="Helmet Compliant"
-        value={liveStats.helmets}
-        subtitle="Workers wearing helmets"
-        icon={<HardHat size={30} />}
-        color="green"
-        trend="+5%"
-      />
-
-      <StatCard
-        title="PPE Violations"
-        value={liveStats.violations}
-        subtitle="Immediate action required"
-        icon={<ShieldAlert size={30} />}
-        color="red"
-        trend="-12%"
-      />
-
-      <StatCard
-        title="Compliance"
-        value={`${liveStats.compliance_rate}%`}
-        subtitle="Overall site safety score"
-        icon={<ShieldCheck size={30} />}
-        color="yellow"
-        trend="+1.8%"
-      />
-
-    </div>
-
-    {/* =========================
-        CAMERA + ZONES
-    ========================== */}
-
-    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-
-      <div className="xl:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-
-        <div className="flex justify-between items-center px-6 py-5 border-b border-slate-800">
-
-          <div>
-
-            <h2 className="text-lg font-semibold">
-              Live Camera Feed
-            </h2>
-
-            <p className="text-xs text-slate-500 mt-1">
-              Camera 01 • Factory Floor
-            </p>
-
-          </div>
-
-          <span className="px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-xs font-semibold">
-            LIVE
-          </span>
-
-        </div>
-
-        <CameraFeed />
-
+        <StatCard
+          title="Avg Incident Duration"
+          value={formatAvgDuration(liveStats.todays_avg_duration)}
+          subtitle="Today's mean incident time"
+          icon={<Clock size={28} />}
+          color="blue"
+          trend="Today Only"
+        />
       </div>
 
-      <ZoneStatus />
+      {/* CAMERA OPERATIONAL CARD + ZONES */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl flex flex-col">
+          {/* Operational Header Badge Bar */}
+          <div className="px-6 py-4 border-b border-slate-800 flex flex-wrap justify-between items-center bg-slate-900/90 gap-3">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <Camera size={18} className="text-emerald-400" />
+                Live Operational CCTV Stream — Camera 01
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">Factory Main Assembly Floor • Model: YOLO11n</p>
+            </div>
 
+            <div className="flex items-center gap-2 text-[11px] font-bold">
+              <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700">
+                Res: 704x576
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                30 FPS
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                Latency: ~31 ms
+              </span>
+              <span className={`px-2.5 py-1 rounded-lg border ${cameraStatus.connected ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-amber-500/10 text-amber-400 border-amber-500/30"}`}>
+                {cameraStatus.connected ? "CONNECTED" : "STREAMING"}
+              </span>
+            </div>
+          </div>
+          <CameraFeed />
+        </div>
+
+        <ZoneStatus />
+      </div>
+
+      {/* DASHBOARD RECENT EVENTS OVERVIEW */}
+      {!isViewer && (
+        <div>
+          <div className="flex justify-between items-center mb-2 px-1">
+            <h3 className="text-sm font-semibold text-slate-400">Quick Operational Overview</h3>
+            <button
+              onClick={onNavigateToEvents}
+              className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition group"
+            >
+              View All Events Log <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+          <RecentEvents isDashboard={true} onNavigateToEvents={onNavigateToEvents} />
+        </div>
+      )}
     </div>
-
-  </div>
   );
 }
 
 function App() {
+  const [user, setUser] = useState(getStoredUser());
+  const [token, setToken] = useState(getAuthToken());
+  const [showAdminWarning, setShowAdminWarning] = useState(isDefaultAdminWarning());
   const [activePage, setActivePage] = useState("Dashboard");
+
+  // Listen for unauthorized 401 events globally
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      clearAuthSession();
+      setUser(null);
+      setToken(null);
+      setShowAdminWarning(false);
+    };
+    window.addEventListener("auth:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
+  }, []);
+
+  const handleLoginSuccess = (userData, tokenData, defaultAdminFlag) => {
+    setUser(userData);
+    setToken(tokenData);
+    setShowAdminWarning(defaultAdminFlag);
+    setActivePage("Dashboard");
+  };
+
+  const handleLogout = () => {
+    clearAuthSession();
+    setUser(null);
+    setToken(null);
+    setShowAdminWarning(false);
+    setActivePage("Dashboard");
+  };
+
+  // Role permissions map
+  const rolePermissions = {
+    Admin: ["Dashboard", "Live Monitoring", "Analytics", "Events", "Alerts", "Reports", "Settings", "Users"],
+    "HSE Officer": ["Dashboard", "Live Monitoring", "Analytics", "Events", "Alerts", "Reports"],
+    Viewer: ["Dashboard", "Analytics", "Reports"],
+  };
+
+  const userRole = user?.role || "Viewer";
+  const allowedPages = rolePermissions[userRole] || ["Dashboard", "Analytics", "Reports"];
+
+  // Route protection fallback
+  useEffect(() => {
+    if (user && !allowedPages.includes(activePage)) {
+      setActivePage("Dashboard");
+    }
+  }, [user, activePage, allowedPages]);
+
+  if (!user || !token) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  const handleNavigateToEvents = () => {
+    if (allowedPages.includes("Events")) {
+      setActivePage("Events");
+    }
+  };
+
   const renderPage = () => {
     switch (activePage) {
       case "Live Monitoring":
-        return <LiveMonitoring />;
+        return allowedPages.includes("Live Monitoring") ? <LiveMonitoring /> : <Dashboard onNavigateToEvents={handleNavigateToEvents} userRole={userRole} />;
       case "Alerts":
-        return <Alerts />;
+        return allowedPages.includes("Alerts") ? <Alerts /> : <Dashboard onNavigateToEvents={handleNavigateToEvents} userRole={userRole} />;
       case "Analytics":
         return <Analytics />;
       case "Events":
-        return <Events />;
+        return allowedPages.includes("Events") ? <Events /> : <Dashboard onNavigateToEvents={handleNavigateToEvents} userRole={userRole} />;
+      case "Reports":
+        return <Reports currentUser={user} />;
       case "Settings":
-        return <Settings />;
+        return allowedPages.includes("Settings") ? <Settings /> : <Dashboard onNavigateToEvents={handleNavigateToEvents} userRole={userRole} />;
+      case "Users":
+        return userRole === "Admin" ? <UserManagement currentUser={user} /> : <Dashboard onNavigateToEvents={handleNavigateToEvents} userRole={userRole} />;
       default:
-        return <Dashboard />;
+        return <Dashboard onNavigateToEvents={handleNavigateToEvents} userRole={userRole} />;
     }
   };
+
   return (
-    <div className="h-screen bg-slate-950 text-white flex overflow-hidden">
+    <div className="h-screen text-white flex overflow-hidden bg-[linear-gradient(rgba(2,6,23,0.78),rgba(2,6,23,0.84)),url('/back_image.jpeg')] bg-cover bg-center bg-no-repeat bg-fixed">
       <Sidebar
         activePage={activePage}
         setActivePage={setActivePage}
+        currentUser={user}
+        onLogout={handleLogout}
       />
-      <main className="flex-1 screen overflow-y-auto">
-        <Header activePage={activePage} />
-        {renderPage()}
+      <main className="flex-1 overflow-y-auto relative bg-slate-950/30 flex flex-col">
+        {/* DEFAULT ADMIN SECURITY WARNING BANNER */}
+        {showAdminWarning && (
+          <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-slate-950 px-6 py-2.5 font-semibold text-xs flex items-center justify-between shadow-lg shrink-0">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={18} className="shrink-0" />
+              <span>
+                <strong>SECURITY ALERT:</strong> You are logged in with default administrator credentials (<strong>admin / admin123</strong>). Please change your password immediately in your profile menu.
+              </span>
+            </div>
+            <button
+              onClick={() => setShowAdminWarning(false)}
+              className="px-3 py-1 bg-slate-950/20 hover:bg-slate-950/40 rounded-lg text-slate-950 font-bold transition"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        <NotificationToast />
+        <Header activePage={activePage} currentUser={user} onLogout={handleLogout} />
+        <div className="flex-1 overflow-y-auto">
+          {renderPage()}
+        </div>
       </main>
     </div>
   );

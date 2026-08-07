@@ -14,7 +14,7 @@ PERSON_CROP_DIR = Path("dataset/person_crops")
 CAPTURE_INTERVAL = 5
 MIN_CONFIDENCE = 0.20
 
-MAX_FRAMES = 2000
+MAX_FRAMES = 500
 
 def main() -> None:
     FULL_FRAME_DIR.mkdir(parents=True, exist_ok=True)

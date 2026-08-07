@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { API_BASE_URL } from "../config/api";
 
 import {
   Chart as ChartJS,
@@ -27,7 +28,7 @@ export default function EventCharts() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await fetch("http://10.2.0.177:5000/events");
+        const response = await fetch(`${API_BASE_URL}/events`);
         const data = await response.json();
         setEvents(data);
       } catch (err) {

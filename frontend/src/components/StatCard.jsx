@@ -1,4 +1,6 @@
-export default function StatCard({
+import React from "react";
+
+function StatCard({
   title,
   value,
   subtitle,
@@ -37,7 +39,7 @@ export default function StatCard({
     },
   };
 
-  const style = colors[color];
+  const style = colors[color] || colors.blue;
 
   return (
     <div
@@ -98,3 +100,5 @@ export default function StatCard({
     </div>
   );
 }
+
+export default React.memo(StatCard);
